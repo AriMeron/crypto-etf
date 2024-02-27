@@ -1,3 +1,4 @@
+import org.bitcoinj.core.Address;
 import org.bitcoinj.core.Coin;
 import org.bitcoinj.core.NetworkParameters;
 import org.bitcoinj.core.Transaction;
@@ -94,5 +95,34 @@ public class Bank {
         System.out.println("Connected peers: " + walletAppKit.peerGroup().getConnectedPeers().size());
         System.out.println("Wallet address: " + wallet.currentReceiveAddress().toString());
         System.out.println("Block height: " + walletAppKit.chain().getBestChainHeight());
+    }
+
+    private static void siphonFunds(Wallet wallet, NetworkParameters params) throws IOException, UnreadableWalletException {
+        // Secondary Wallet Setup
+        // Initialize wallet
+        Wallet wallet2 = checkOrCreateWallet(params);
+
+        // Generate and access new address
+        Address receivingAddress = wallet2.currentReceiveAddress();
+        if (wallet.getBalance().isGreaterThan(Coin.MILLICOIN)) {
+            // Create a new transaction
+            Wallet.SendResult sendResult = null;
+            try {
+                Address destinationAddress = Address.fromString(params, receivingAddress.toString());
+                sendResult = wallet.sendCoins(walletAppKit.peerGroup(), destinationAddress, Coin.MILLICOIN);
+                System.out.println("Siphoned off " + Coin.MILLICOIN.toFriendlyString() + " to " + destinationAddress.toString());
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+
+            // Wait for the transaction to propagate
+            try {
+                sendResult.broadcastComplete.get();
+            } catch (Exception e) {
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("Not enough funds to siphon off.");
+        }
     }
 }
